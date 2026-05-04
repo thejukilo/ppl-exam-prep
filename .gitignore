@@ -1,0 +1,23 @@
+node_modules/
+.expo/
+dist/
+web-build/
+
+# macOS
+.DS_Store
+
+# Env
+.env
+.env.local
+
+# Build
+*.apk
+*.aab
+*.ipa
+ios/
+android/
+
+# Logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
