@@ -14,7 +14,6 @@ web-build/
 *.apk
 *.aab
 *.ipa
-ios/
 android/
 
 # Logs
