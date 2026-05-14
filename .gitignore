@@ -1,22 +1,13 @@
 node_modules/
+ios/Pods/
+ios/build/
+ios/DerivedData/
+ios/.xcode.env.local
+ios/PPLExamPrep.xcworkspace/xcuserdata/
+ios/PPLExamPrep.xcodeproj/xcuserdata/
+android/
 .expo/
-dist/
-web-build/
-
-# macOS
-.DS_Store
-
-# Env
 .env
 .env.local
-
-# Build
-*.apk
-*.aab
-*.ipa
-android/
-
-# Logs
-npm-debug.*
-yarn-debug.*
-yarn-error.*
+.DS_Store
+*.tsbuildinfo
