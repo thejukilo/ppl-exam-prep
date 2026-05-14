@@ -1,26 +1,30 @@
 import { useAppSelector } from '../redux/store';
 import { selectIsPremium } from '../redux/slices/subscriptionSlice';
-import { selectQuestionsAnsweredToday } from '../redux/slices/progressSlice';
+import { selectUniqueAnsweredCount } from '../redux/slices/progressSlice';
 import { FREEMIUM } from '../config/freemium';
 
 export interface FreemiumStatus {
   isPremium: boolean;
-  answeredToday: number;
-  dailyLimit: number;
+  /** Distinct questions the user has ever answered. */
+  answeredEver: number;
+  /** Total free-tier quota (across the user's lifetime). */
+  lifetimeLimit: number;
+  /** How many free questions the user has left. Infinity for premium. */
   remaining: number;
+  /** True when the free user has used up their lifetime quota. */
   limitReached: boolean;
 }
 
 export function useFreemium(): FreemiumStatus {
   const isPremium = useAppSelector(selectIsPremium);
-  const answeredToday = useAppSelector(selectQuestionsAnsweredToday);
-  const dailyLimit = FREEMIUM.freeDailyQuestionLimit;
-  const remaining = isPremium ? Infinity : Math.max(0, dailyLimit - answeredToday);
+  const answeredEver = useAppSelector(selectUniqueAnsweredCount);
+  const lifetimeLimit = FREEMIUM.freeLifetimeQuestionLimit;
+  const remaining = isPremium ? Infinity : Math.max(0, lifetimeLimit - answeredEver);
   return {
     isPremium,
-    answeredToday,
-    dailyLimit,
+    answeredEver,
+    lifetimeLimit,
     remaining,
-    limitReached: !isPremium && answeredToday >= dailyLimit,
+    limitReached: !isPremium && answeredEver >= lifetimeLimit,
   };
 }

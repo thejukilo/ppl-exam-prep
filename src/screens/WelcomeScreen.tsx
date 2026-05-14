@@ -49,7 +49,7 @@ export function WelcomeScreen({ navigation }: Props) {
             Pass your PPL{'\n'}with confidence
           </Text>
           <Text style={[typography.body, styles.subtitle]}>
-            893 EASA exam questions, study guides, and progress tracking — all in your pocket.
+            893 EASA exam questions, mock exams, and progress tracking — all in your pocket.
           </Text>
 
           <View style={styles.actions}>

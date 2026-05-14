@@ -6,6 +6,7 @@ import { Button } from '../components/Button';
 import { useAppSelector } from '../redux/store';
 import { selectQuestionById } from '../redux/slices/questionsSlice';
 import { selectAttemptForQuestion } from '../redux/slices/progressSlice';
+import { selectIsPremium } from '../redux/slices/subscriptionSlice';
 import { getTopicById } from '../data/topics';
 import { colors } from '../utils/colors';
 import { spacing, radius } from '../utils/spacing';
@@ -16,10 +17,15 @@ import { htmlToLines } from '../utils/htmlText';
 type Props = NativeStackScreenProps<RootStackParamList, 'Result'>;
 
 export function ResultScreen({ route, navigation }: Props) {
-  const { topicId, correct, total, questionIds } = route.params;
-  const topic = getTopicById(topicId);
+  const { topicId, correct, total, questionIds, isReview } = route.params;
+  const topic = topicId ? getTopicById(topicId) : null;
+  const isPremium = useAppSelector(selectIsPremium);
   const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
   const passed = pct >= 75; // EASA pass mark
+
+  const subtitle = isReview
+    ? `${correct} of ${total} correct • Mistakes review`
+    : `${correct} of ${total} correct${topic ? ` • ${topic.name}` : ''}`;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -29,7 +35,7 @@ export function ResultScreen({ route, navigation }: Props) {
         </Text>
         <Text style={styles.bigScore}>{pct}%</Text>
         <Text style={[typography.body, styles.scoreSub]}>
-          {correct} of {total} correct • {topic?.name}
+          {subtitle}
         </Text>
       </View>
 
@@ -39,10 +45,21 @@ export function ResultScreen({ route, navigation }: Props) {
       ))}
 
       <View style={{ marginTop: spacing.xl, gap: spacing.sm }}>
-        <Button
-          title="Practise This Topic Again"
-          onPress={() => navigation.replace('Quiz', { topicId, mode: 'practice' })}
-        />
+        {isReview ? (
+          <Button
+            title={isPremium ? 'Review More Mistakes' : 'Unlock all mistakes review'}
+            onPress={() =>
+              isPremium
+                ? navigation.replace('Quiz', { mode: 'review' })
+                : navigation.navigate('Paywall')
+            }
+          />
+        ) : topicId ? (
+          <Button
+            title="Practise This Topic Again"
+            onPress={() => navigation.replace('Quiz', { topicId, mode: 'practice' })}
+          />
+        ) : null}
         <Button
           title="Back to Topics"
           variant="secondary"

@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Easing, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle, Ellipse, G, Path, Rect } from 'react-native-svg';
+import Svg, { Circle, Ellipse, G } from 'react-native-svg';
+import { Plane } from 'lucide-react-native';
 import { colors } from '../utils/colors';
 
 /**
@@ -29,9 +30,19 @@ export function SkyScene({ height = 360 }: Props) {
   const cloudsBack = useRef(new Animated.Value(0)).current;
   const cloudsFront = useRef(new Animated.Value(0)).current;
 
-  // Plane: horizontal pos + vertical bob
-  const planeX = useRef(new Animated.Value(-80)).current;
+  // Plane: horizontal pos (driven manually each flight) + gentle vertical bob.
+  // Each "flight" randomises direction, size, altitude and speed so the sky
+  // feels like it has many different planes passing through, not one looped one.
+  const planeX = useRef(new Animated.Value(-200)).current;
   const planeBob = useRef(new Animated.Value(0)).current;
+  const [planeFlight, setPlaneFlight] = useState({
+    /** -1 = right-to-left, 1 = left-to-right */
+    direction: 1 as 1 | -1,
+    /** scale factor: 0.55 (far) to 1.2 (close) */
+    scale: 1,
+    /** vertical offset within the upper portion of the scene */
+    topRatio: 0.32,
+  });
 
   useEffect(() => {
     const loop = (val: Animated.Value, ms: number) =>
@@ -47,22 +58,7 @@ export function SkyScene({ height = 360 }: Props) {
     loop(cloudsBack, 32000).start();
     loop(cloudsFront, 22000).start();
 
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(planeX, {
-          toValue: SCREEN_W + 80,
-          duration: 14000,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(planeX, {
-          toValue: -80,
-          duration: 0,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-
+    // Continuous gentle bobbing while in flight
     Animated.loop(
       Animated.sequence([
         Animated.timing(planeBob, {
@@ -79,6 +75,57 @@ export function SkyScene({ height = 360 }: Props) {
         }),
       ])
     ).start();
+
+    // Recursive plane scheduler: pick random params, fly across, wait a bit,
+    // then schedule the next flight.
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const flyOne = () => {
+      if (cancelled) return;
+      // Random direction (50/50)
+      const direction: 1 | -1 = Math.random() < 0.5 ? 1 : -1;
+      // Three "depth" tiers so it reads as planes at different distances
+      const tier = Math.random();
+      const scale = tier < 0.33 ? 0.55 : tier < 0.7 ? 0.85 : 1.2;
+      // Altitude variation: top 25%–55% of the scene
+      const topRatio = 0.25 + Math.random() * 0.3;
+      // Closer planes (bigger) move a bit faster — parallax cue.
+      // Tuned for ~6–9s per crossing — long enough to enjoy, short enough
+      // that the screen is rarely empty.
+      const baseDuration = 9000 - scale * 2500; // 0.55 → ~7.6k, 1.2 → ~6k
+      const duration = baseDuration + Math.random() * 2000; // jitter ±1s
+
+      setPlaneFlight({ direction, scale, topRatio });
+
+      // Set the start position and animate across.
+      const offscreenStart = direction === 1 ? -200 : SCREEN_W + 200;
+      const offscreenEnd = direction === 1 ? SCREEN_W + 200 : -200;
+      planeX.setValue(offscreenStart);
+
+      Animated.timing(planeX, {
+        toValue: offscreenEnd,
+        duration,
+        easing: Easing.inOut(Easing.quad),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (cancelled || !finished) return;
+        // Pause between flights: usually 0.4–1.6s, with a 25% chance of an
+        // immediate follow-up (no pause) so occasionally two planes appear
+        // close together — feels like real flight traffic.
+        const pause = Math.random() < 0.25 ? 0 : 400 + Math.random() * 1200;
+        timer = setTimeout(flyOne, pause);
+      });
+    };
+
+    // Start the first flight almost immediately so the screen feels alive
+    // from the moment it appears.
+    timer = setTimeout(flyOne, 150);
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [cloudsBack, cloudsFront, planeX, planeBob]);
 
   const cloudsBackTranslate = cloudsBack.interpolate({
@@ -154,8 +201,14 @@ export function SkyScene({ height = 360 }: Props) {
         style={[
           styles.plane,
           {
-            top: height * 0.32,
-            transform: [{ translateX: planeX }, { translateY: planeY }],
+            top: height * planeFlight.topRatio,
+            transform: [
+              { translateX: planeX },
+              { translateY: planeY },
+              { scale: planeFlight.scale },
+              // Flip horizontally when flying right-to-left
+              { scaleX: planeFlight.direction },
+            ],
           },
         ]}
       >
@@ -192,48 +245,19 @@ function CloudShape({
 }
 
 function PlaneShape() {
-  // Friendly cartoon plane silhouette in white with orange accents
+  // Lucide's Plane icon points up-and-right (~45°). Rotating it +45° clockwise
+  // makes the nose point straight right, matching the horizontal travel direction.
+  // The base size is generous (80px) — the scheduler scales it down for "far"
+  // planes to give a sense of depth.
   return (
-    <Svg width={80} height={48} viewBox="0 0 80 48">
-      {/* Wing shadow */}
-      <Path
-        d="M22 28 L8 38 L18 30 L26 28 Z"
-        fill={colors.primaryDark}
-        opacity={0.5}
-      />
-      {/* Body */}
-      <Path
-        d="M2 24 Q2 20 8 19 L48 18 Q58 18 64 22 L74 24 Q76 24 76 25 Q76 26 74 26 L64 28 Q58 32 48 32 L8 31 Q2 30 2 26 Z"
-        fill={colors.surface}
-        stroke={colors.textPrimary}
-        strokeWidth={1.5}
-      />
-      {/* Top wing */}
-      <Path
-        d="M28 19 L20 8 L34 18 Z"
+    <View style={{ transform: [{ rotate: '45deg' }] }}>
+      <Plane
+        size={80}
+        color={colors.primary}
         fill={colors.primary}
-        stroke={colors.textPrimary}
         strokeWidth={1.5}
       />
-      {/* Bottom wing */}
-      <Path
-        d="M28 31 L20 42 L34 32 Z"
-        fill={colors.primary}
-        stroke={colors.textPrimary}
-        strokeWidth={1.5}
-      />
-      {/* Tail fin */}
-      <Path
-        d="M58 18 L52 10 L62 18 Z"
-        fill={colors.primaryDark}
-        stroke={colors.textPrimary}
-        strokeWidth={1.5}
-      />
-      {/* Window */}
-      <Rect x={42} y={21} width={10} height={6} rx={2} fill={colors.accent} stroke={colors.textPrimary} strokeWidth={1} />
-      {/* Nose detail */}
-      <Circle cx={72} cy={25} r={2} fill={colors.accent} />
-    </Svg>
+    </View>
   );
 }
 

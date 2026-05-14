@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { ProgressBar } from '../components/ProgressBar';
 import { useAppSelector } from '../redux/store';
@@ -10,8 +12,10 @@ import { TOPICS } from '../data/topics';
 import { colors } from '../utils/colors';
 import { spacing, radius } from '../utils/spacing';
 import { typography } from '../utils/fonts';
+import { RootStackParamList } from '../navigation/RootNavigator';
 
 export function ProgressScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const questions = useAppSelector(selectAllQuestions);
   const progress = useAppSelector(selectTopicProgress);
   const bookmarks = useAppSelector(selectBookmarks);
@@ -40,6 +44,19 @@ export function ProgressScreen() {
           <SummaryStat label="Correct" value={`${totals.correct}`} sub={`${overallAccuracy}%`} />
           <SummaryStat label="Bookmarks" value={`${bookmarks.length}`} sub="" />
         </View>
+
+        <Pressable
+          onPress={() => navigation.navigate('Bookmarks')}
+          style={({ pressed }) => [
+            styles.bookmarksLink,
+            pressed && { opacity: 0.7 },
+          ]}
+        >
+          <Text style={[typography.bodyStrong, { color: colors.primary }]}>
+            ★  View bookmarked questions
+          </Text>
+          <Text style={[typography.body, { color: colors.textMuted }]}>›</Text>
+        </Pressable>
 
         <Text style={[typography.h2, styles.section]}>By Subject</Text>
 
@@ -94,6 +111,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   summaryStat: { flex: 1, alignItems: 'center' },
+  bookmarksLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginTop: spacing.sm,
+  },
   section: { color: colors.textPrimary, marginTop: spacing.xl, marginBottom: spacing.md },
   row: {
     backgroundColor: colors.surface,

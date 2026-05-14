@@ -3,8 +3,8 @@ import { Question, TopicId } from '../types';
 import { TOPIC_NAME_TO_ID } from '../data/topics';
 import { supabase } from './supabase';
 
-const CACHE_KEY = 'questions_cache_v1';
-const CACHE_TIMESTAMP_KEY = 'questions_cache_ts_v1';
+const CACHE_KEY = 'questions_cache_v3';
+const CACHE_TIMESTAMP_KEY = 'questions_cache_ts_v3';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface SupabaseQuestionRow {

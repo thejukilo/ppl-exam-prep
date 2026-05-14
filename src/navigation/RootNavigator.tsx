@@ -5,17 +5,20 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
 
 import { WelcomeScreen } from '../screens/WelcomeScreen';
+import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { TopicScreen } from '../screens/TopicScreen';
 import { QuizScreen } from '../screens/QuizScreen';
 import { ResultScreen } from '../screens/ResultScreen';
-import { StudyGuideScreen } from '../screens/StudyGuideScreen';
+import { ExamScreen } from '../screens/ExamScreen';
+import { BookmarksScreen } from '../screens/BookmarksScreen';
 import { ProgressScreen } from '../screens/ProgressScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { PaywallScreen } from '../screens/PaywallScreen';
 import { AuthScreen } from '../screens/AuthScreen';
 
 import { useAppSelector } from '../redux/store';
+import { selectOnboardingCompleted } from '../redux/slices/appSlice';
 import { TopicId } from '../types';
 import { colors } from '../utils/colors';
 
@@ -24,17 +27,37 @@ import { colors } from '../utils/colors';
 export type RootStackParamList = {
   Welcome: undefined;
   Auth: { mode?: 'signin' | 'signup' } | undefined;
+  /**
+   * Same screen as Auth, but reachable from inside the signed-in app
+   * (e.g. for guests upgrading their account). Has a different route name
+   * to avoid React Navigation reusing the same screen across signed-out
+   * and signed-in branches, which caused a "stuck modal" bug.
+   */
+  UpgradeAccount: { mode?: 'signin' | 'signup' } | undefined;
+  Onboarding: undefined;
   Tabs: undefined;
   Topic: { topicId: TopicId };
-  Quiz: { topicId: TopicId; mode?: 'practice' | 'exam' };
+  Quiz: {
+    topicId?: TopicId; // optional in review mode (cross-topic)
+    mode?: 'practice' | 'review';
+    /** Number of questions in this practice session. Defaults to 10. */
+    count?: number;
+    /** If set, this question will be the first one in the batch (used by Bookmarks). */
+    startQuestionId?: string;
+    /** When true, restore the saved in-progress session for this topic. */
+    resume?: boolean;
+  };
+  Exam: { topicId: TopicId };
   Result: {
-    topicId: TopicId;
+    topicId?: TopicId;
     correct: number;
     total: number;
     questionIds: string[];
+    /** Set when this Result came from review mode, so the screen can adapt copy. */
+    isReview?: boolean;
   };
-  StudyGuide: { topicId: TopicId };
   Paywall: undefined;
+  Bookmarks: undefined;
 };
 
 export type TabParamList = {
@@ -94,12 +117,13 @@ function TabNav() {
 export function RootNavigator() {
   const user = useAppSelector((s) => s.auth.user);
   const initializing = useAppSelector((s) => s.auth.initializing);
+  const onboardingCompleted = useAppSelector(selectOnboardingCompleted);
 
-  // Two top-level branches:
+  // Three top-level branches:
   //   - signed out -> Welcome + Auth modal
-  //   - signed in (incl. anonymous) -> Tabs + content stack
-  // Switching between the two re-mounts everything, which is what we want
-  // (e.g. signing out clears state).
+  //   - signed in but onboarding not yet completed -> Onboarding
+  //   - fully ready -> Tabs + content stack
+  // Switching between branches re-mounts everything (e.g. signing out clears state).
 
   return (
     <NavigationContainer>
@@ -121,25 +145,31 @@ export function RootNavigator() {
               options={{ title: '', presentation: 'modal' }}
             />
           </>
+        ) : !onboardingCompleted ? (
+          <Stack.Screen
+            name="Onboarding"
+            component={OnboardingScreen}
+            options={{ headerShown: false }}
+          />
         ) : (
           <>
             <Stack.Screen name="Tabs" component={TabNav} options={{ headerShown: false }} />
             <Stack.Screen name="Topic" component={TopicScreen} options={{ title: '' }} />
             <Stack.Screen name="Quiz" component={QuizScreen} options={{ title: 'Practice' }} />
+            <Stack.Screen name="Exam" component={ExamScreen} options={{ title: 'Mock Exam' }} />
+            <Stack.Screen name="Bookmarks" component={BookmarksScreen} options={{ title: 'Bookmarks' }} />
             <Stack.Screen
               name="Result"
               component={ResultScreen}
               options={{ title: 'Results', headerBackVisible: false }}
             />
-            <Stack.Screen name="StudyGuide" component={StudyGuideScreen} options={{ title: 'Study Guide' }} />
             <Stack.Screen
               name="Paywall"
               component={PaywallScreen}
-              options={{ title: 'Go Premium', presentation: 'modal' }}
+              options={{ title: 'Unlock Premium', presentation: 'modal' }}
             />
-            {/* Auth is also reachable from inside the app (e.g. for guests upgrading their account) */}
             <Stack.Screen
-              name="Auth"
+              name="UpgradeAccount"
               component={AuthScreen}
               options={{ title: '', presentation: 'modal' }}
             />

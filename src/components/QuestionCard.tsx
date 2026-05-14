@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Question } from '../types';
 import { colors } from '../utils/colors';
 import { spacing, radius } from '../utils/spacing';
 import { typography } from '../utils/fonts';
 import { htmlToLines } from '../utils/htmlText';
+import { ImageZoomModal } from './ImageZoomModal';
 
 interface Props {
   question: Question;
@@ -15,6 +16,7 @@ interface Props {
 
 export function QuestionCard({ question, selectedAnswer, revealed, onSelect }: Props) {
   const lines = htmlToLines(question.text);
+  const [zoomOpen, setZoomOpen] = useState(false);
 
   return (
     <View>
@@ -27,11 +29,19 @@ export function QuestionCard({ question, selectedAnswer, revealed, onSelect }: P
       </View>
 
       {question.attachmentUrl ? (
-        <Image
-          source={{ uri: question.attachmentUrl }}
-          style={styles.attachment}
-          resizeMode="contain"
-        />
+        <Pressable
+          onPress={() => setZoomOpen(true)}
+          style={({ pressed }) => [styles.attachmentWrap, pressed && { opacity: 0.85 }]}
+        >
+          <Image
+            source={{ uri: question.attachmentUrl }}
+            style={styles.attachment}
+            resizeMode="contain"
+          />
+          <View style={styles.zoomHint}>
+            <Text style={styles.zoomHintText}>⤢ Tap to enlarge</Text>
+          </View>
+        </Pressable>
       ) : null}
 
       <View style={{ marginTop: spacing.lg }}>
@@ -59,6 +69,12 @@ export function QuestionCard({ question, selectedAnswer, revealed, onSelect }: P
           </Text>
         </View>
       )}
+
+      <ImageZoomModal
+        uri={question.attachmentUrl ?? null}
+        visible={zoomOpen}
+        onClose={() => setZoomOpen(false)}
+      />
     </View>
   );
 }
@@ -116,6 +132,24 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     borderRadius: radius.md,
     backgroundColor: colors.surfaceAlt,
+  },
+  attachmentWrap: {
+    position: 'relative',
+  },
+  zoomHint: {
+    position: 'absolute',
+    bottom: spacing.sm,
+    right: spacing.sm,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.md,
+  },
+  zoomHintText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   option: {
     flexDirection: 'row',

@@ -6,23 +6,12 @@ interface ProgressState {
   attemptsByQuestion: Record<string, QuestionAttempt>;
   /** Bookmarked question IDs */
   bookmarks: string[];
-  /** Local-time YYYY-MM-DD -> count of questions answered that day */
-  dailyCounts: Record<string, number>;
 }
 
 const initialState: ProgressState = {
   attemptsByQuestion: {},
   bookmarks: [],
-  dailyCounts: {},
 };
-
-function todayKey(): string {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
 
 const progressSlice = createSlice({
   name: 'progress',
@@ -30,13 +19,10 @@ const progressSlice = createSlice({
   reducers: {
     recordAttempt: (state, action: PayloadAction<QuestionAttempt>) => {
       const a = action.payload;
-      const prev = state.attemptsByQuestion[a.questionId];
+      // Just record the most recent attempt. Free-tier counting is derived from
+      // the size of attemptsByQuestion (see selectors below) — no separate
+      // counter needed, no daily reset, no exploit.
       state.attemptsByQuestion[a.questionId] = a;
-      // Only count *new* questions toward the daily limit; re-attempts are free.
-      if (!prev) {
-        const k = todayKey();
-        state.dailyCounts[k] = (state.dailyCounts[k] ?? 0) + 1;
-      }
     },
     toggleBookmark: (state, action: PayloadAction<string>) => {
       const id = action.payload;
@@ -68,8 +54,27 @@ export const selectAttemptForQuestion =
 
 export const selectBookmarks = (s: RootState) => s.progress.bookmarks;
 
-export const selectQuestionsAnsweredToday = (s: RootState): number =>
-  s.progress.dailyCounts[todayKey()] ?? 0;
+/**
+ * How many distinct questions the user has ever answered.
+ * This is the number that counts against the free-tier lifetime quota.
+ */
+export const selectUniqueAnsweredCount = (s: RootState): number =>
+  Object.keys(s.progress.attemptsByQuestion).length;
+
+/**
+ * Question IDs the user got wrong on their MOST RECENT attempt. If they
+ * later answered correctly, the question is no longer in this set.
+ *
+ * Sorted most-recently-wrong first.
+ */
+export const selectWrongAnsweredIds = (s: RootState): string[] => {
+  const wrong = Object.values(s.progress.attemptsByQuestion).filter(
+    (a) => !a.isCorrect
+  );
+  return wrong
+    .sort((a, b) => b.answeredAt - a.answeredAt)
+    .map((a) => a.questionId);
+};
 
 export const selectTopicProgress = (s: RootState): Record<TopicId, TopicProgress> => {
   const out: Partial<Record<TopicId, TopicProgress>> = {};

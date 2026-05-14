@@ -1,35 +1,75 @@
 import { Platform } from 'react-native';
-import * as AppleAuthentication from 'expo-apple-authentication';
-import {
-  GoogleSignin,
-  statusCodes,
-} from '@react-native-google-signin/google-signin';
-import Constants from 'expo-constants';
 
 import { supabase } from './supabase';
 import { AppUser } from '../types';
+import { isExpoGo, supportsNativeAuth, getRuntimeExtras } from '../utils/env';
 
 // ---------------------------------------------------------------------------
-// Google Sign-In configuration
+// Lazy-loaded native modules
 // ---------------------------------------------------------------------------
 //
-// Configure once on module load. The webClientId is the OAuth 2.0 client ID
-// from Google Cloud Console (type: Web application). On iOS we additionally
-// pass the iOS-specific client ID; on Android we use the web client ID only
-// (Android uses the SHA-1 of the signing cert + package name to identify
-// the app, no client-side ID needed for the basic flow).
+// `expo-apple-authentication` and `@react-native-google-signin/google-signin`
+// are NATIVE modules — they require platform code that's only present in
+// development builds (not in Expo Go). Importing them at the top level
+// would crash Expo Go on launch with a TurboModuleRegistry error.
 //
-// See docs/AUTH_SETUP.md for how to obtain these values.
+// Instead we lazy-require them only when their function is actually called,
+// inside an `if (supportsNativeAuth)` guard, so the module never resolves
+// in Expo Go and we can show a friendly message instead.
 
-const extra = Constants.expoConfig?.extra ?? {};
-const googleWebClientId = (extra.googleWebClientId as string) || '';
-const googleIosClientId = (extra.googleIosClientId as string) || '';
+let _AppleAuthentication: typeof import('expo-apple-authentication') | null = null;
+let _GoogleSignin: typeof import('@react-native-google-signin/google-signin') | null = null;
+let _googleConfigured = false;
 
-GoogleSignin.configure({
-  webClientId: googleWebClientId,
-  iosClientId: googleIosClientId,
-  offlineAccess: false,
-});
+function getAppleAuth() {
+  if (!supportsNativeAuth) return null;
+  if (!_AppleAuthentication) {
+    _AppleAuthentication = require('expo-apple-authentication');
+  }
+  return _AppleAuthentication;
+}
+
+function getGoogleSignin() {
+  if (!supportsNativeAuth) return null;
+  if (!_GoogleSignin) {
+    _GoogleSignin = require('@react-native-google-signin/google-signin');
+  }
+
+  // Configure once on first use
+  if (!_googleConfigured && _GoogleSignin) {
+    const extra = getRuntimeExtras();
+    const webClientId = (extra.googleWebClientId as string) || '';
+    const iosClientId = (extra.googleIosClientId as string) || '';
+
+    if (webClientId) {
+      _GoogleSignin.GoogleSignin.configure({
+        webClientId,
+        iosClientId,
+        offlineAccess: false,
+      });
+      _googleConfigured = true;
+    }
+  }
+  return _GoogleSignin;
+}
+
+// ---------------------------------------------------------------------------
+// Capability flags (consumed by the UI to hide unsupported buttons)
+// ---------------------------------------------------------------------------
+
+export const authCapabilities = {
+  apple: supportsNativeAuth && Platform.OS === 'ios',
+  google: supportsNativeAuth,
+  email: true,
+  anonymous: true,
+};
+
+/**
+ * Friendly message shown when a user taps an unsupported provider in Expo Go.
+ */
+const EXPO_GO_MSG =
+  'Apple and Google Sign-In are only available in a development build. ' +
+  'Use email or guest mode in Expo Go.';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -77,24 +117,21 @@ export async function signInAnonymously(): Promise<AppUser> {
 }
 
 /**
- * Apple Sign-In (iOS only).
- *
- * Flow:
- *   1. Ask Apple for an identity token via expo-apple-authentication.
- *   2. Hand that token to Supabase to create/sign-in the user.
- *
- * Requires: enabled "Sign in with Apple" capability in your Apple Developer
- * account, and Apple as a provider in Supabase Auth settings.
+ * Apple Sign-In (iOS only, dev/production builds only — not Expo Go).
  */
 export async function signInWithApple(): Promise<AppUser> {
   if (Platform.OS !== 'ios') {
     throw new Error('Apple Sign-In is only available on iOS');
   }
+  const apple = getAppleAuth();
+  if (!apple) {
+    throw new Error(EXPO_GO_MSG);
+  }
 
-  const credential = await AppleAuthentication.signInAsync({
+  const credential = await apple.signInAsync({
     requestedScopes: [
-      AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-      AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      apple.AppleAuthenticationScope.FULL_NAME,
+      apple.AppleAuthenticationScope.EMAIL,
     ],
   });
 
@@ -112,21 +149,23 @@ export async function signInWithApple(): Promise<AppUser> {
 }
 
 /**
- * Google Sign-In (iOS + Android).
- *
- * Flow:
- *   1. Native Google Sign-In returns an idToken.
- *   2. Pass it to Supabase to create/sign-in the user.
+ * Google Sign-In (iOS + Android, dev/production builds only — not Expo Go).
  */
 export async function signInWithGoogle(): Promise<AppUser> {
-  if (!googleWebClientId) {
+  const google = getGoogleSignin();
+  if (!google) {
+    throw new Error(EXPO_GO_MSG);
+  }
+
+  const extra = getRuntimeExtras();
+  if (!extra.googleWebClientId) {
     throw new Error(
       'Google Sign-In is not configured. Set GOOGLE_WEB_CLIENT_ID in .env and rebuild.'
     );
   }
 
-  await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-  const result = await GoogleSignin.signIn();
+  await google.GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+  const result = await google.GoogleSignin.signIn();
 
   // Library returns either { type: 'success', data: { idToken } } in newer
   // versions or { idToken } directly in older. Handle both.
@@ -148,12 +187,28 @@ export async function signInWithGoogle(): Promise<AppUser> {
 
 export async function signOut(): Promise<void> {
   // Sign out of any third-party providers too, so next launch fully resets.
-  try {
-    await GoogleSignin.signOut();
-  } catch {
-    // Not signed in — ignore
+  // Only attempt this if Google Signin was loaded (i.e. dev build).
+  const google = _GoogleSignin;
+  if (google) {
+    try {
+      await google.GoogleSignin.signOut();
+    } catch {
+      // Not signed in — ignore
+    }
   }
   const { error } = await supabase.auth.signOut();
+  if (error) throw error;
+}
+
+/**
+ * Send a password-reset email to the given address.
+ *
+ * Supabase emails the user a link that, when tapped, opens a Supabase-hosted
+ * page where they can set a new password. The user does not need to be signed
+ * in for this to work.
+ */
+export async function sendPasswordReset(email: string): Promise<void> {
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
   if (error) throw error;
 }
 
@@ -163,3 +218,6 @@ export function onAuthStateChange(cb: (user: AppUser | null) => void): () => voi
   });
   return () => data.subscription.unsubscribe();
 }
+
+// Re-export for convenience
+export { isExpoGo };

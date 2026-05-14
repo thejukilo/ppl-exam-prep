@@ -15,10 +15,11 @@ import { RootStackParamList } from '../navigation/RootNavigator';
 type Props = NativeStackScreenProps<RootStackParamList, 'Paywall'>;
 
 const BENEFITS = [
-  'Unlimited practice questions',
-  'Full study guides for every subject',
-  'Bookmark questions for later',
+  'All 893 EASA practice questions',
   'Detailed answer explanations',
+  'Charts and diagrams for visual questions',
+  'Full mock exam mode with timer',
+  'Bookmark questions for later',
   'Sync progress across devices',
   'No ads, ever',
 ];
@@ -26,29 +27,46 @@ const BENEFITS = [
 export function PaywallScreen({ navigation }: Props) {
   const dispatch = useAppDispatch();
   const user = useAppSelector((s) => s.auth.user);
-  const [busyPlan, setBusyPlan] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const purchase = async (productId: string) => {
+  const purchase = async () => {
     if (!user) {
       Alert.alert('Sign in required', 'Please sign in or continue as guest first.', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Sign In', onPress: () => navigation.navigate('Auth') },
+        { text: 'Sign In', onPress: () => navigation.navigate('UpgradeAccount') },
       ]);
       return;
     }
-    // TODO: Replace this with real IAP via expo-in-app-purchases or RevenueCat
-    // and verify the receipt server-side (Edge Function) before flipping the bit.
-    setBusyPlan(productId);
+    // TODO: Replace with real IAP via expo-in-app-purchases or RevenueCat.
+    // Non-consumable product. Verify the receipt server-side (Edge Function)
+    // before flipping the subscription_tier in profiles.
+    setBusy(true);
     try {
       const sub = await upgradeToPremium(user.id);
       dispatch(setSubscription(sub));
-      Alert.alert('You are Premium', 'Enjoy unlimited practice and full study guides.');
+      Alert.alert(
+        'Welcome to Premium!',
+        'You now have lifetime access to the full question bank.'
+      );
       navigation.goBack();
     } catch (e: any) {
-      Alert.alert('Upgrade failed', e?.message ?? 'Unknown error');
+      Alert.alert('Purchase failed', e?.message ?? 'Unknown error');
     } finally {
-      setBusyPlan(null);
+      setBusy(false);
     }
+  };
+
+  const restore = async () => {
+    if (!user) {
+      Alert.alert('Sign in required', 'Please sign in to restore a previous purchase.');
+      return;
+    }
+    // TODO: Real restore via IAP library — should query past purchases for this Apple/Google
+    // account, find the lifetime productId, and re-flip the subscription bit.
+    Alert.alert(
+      'Restore purchases',
+      'Restore is not yet implemented in this build. It will be available when in-app purchases are wired up.'
+    );
   };
 
   return (
@@ -57,7 +75,7 @@ export function PaywallScreen({ navigation }: Props) {
         <Text style={styles.crown}>👑</Text>
         <Text style={[typography.display, styles.title]}>PPL Prep Premium</Text>
         <Text style={[typography.body, styles.subtitle]}>
-          Pass your EASA theory exams with confidence.
+          One-time purchase. Lifetime access. No subscription.
         </Text>
       </View>
 
@@ -70,79 +88,35 @@ export function PaywallScreen({ navigation }: Props) {
         ))}
       </View>
 
-      <View style={{ gap: spacing.sm, marginTop: spacing.lg }}>
-        <PlanCard
-          title="Yearly"
-          price={FREEMIUM.pricing.yearly.display}
-          badge={FREEMIUM.pricing.yearly.badge}
-          highlighted
-          loading={busyPlan === FREEMIUM.pricing.yearly.productId}
-          onPress={() => purchase(FREEMIUM.pricing.yearly.productId)}
-        />
-        <PlanCard
-          title="Monthly"
-          price={FREEMIUM.pricing.monthly.display}
-          loading={busyPlan === FREEMIUM.pricing.monthly.productId}
-          onPress={() => purchase(FREEMIUM.pricing.monthly.productId)}
-        />
-        <PlanCard
-          title="Lifetime"
-          price={FREEMIUM.pricing.lifetime.display}
-          loading={busyPlan === FREEMIUM.pricing.lifetime.productId}
-          onPress={() => purchase(FREEMIUM.pricing.lifetime.productId)}
+      <View style={styles.priceCard}>
+        <Text style={[typography.caption, { color: colors.textSecondary }]}>
+          {FREEMIUM.pricing.lifetime.label.toUpperCase()}
+        </Text>
+        <Text style={styles.priceText} adjustsFontSizeToFit numberOfLines={1}>
+          {FREEMIUM.pricing.lifetime.display}
+        </Text>
+        <Text style={[typography.caption, { color: colors.textMuted, marginBottom: spacing.md }]}>
+          Pay once. No recurring charges.
+        </Text>
+        <Button
+          title="Unlock Lifetime Access"
+          loading={busy}
+          onPress={purchase}
         />
       </View>
+
+      <Button
+        title="Restore Purchase"
+        variant="secondary"
+        onPress={restore}
+        style={{ marginTop: spacing.md }}
+      />
 
       <Text style={[typography.caption, styles.legal]}>
-        Subscription auto-renews unless cancelled at least 24h before the end of the period. Manage
-        in your App Store / Play Store account.
+        Payment will be charged to your App Store / Google Play account at confirmation of purchase.
+        This is a one-time purchase — there is nothing to cancel.
       </Text>
     </ScrollView>
-  );
-}
-
-interface PlanProps {
-  title: string;
-  price: string;
-  badge?: string;
-  highlighted?: boolean;
-  loading?: boolean;
-  onPress: () => void;
-}
-
-function PlanCard({ title, price, badge, highlighted, loading, onPress }: PlanProps) {
-  return (
-    <View
-      style={[
-        styles.plan,
-        highlighted && {
-          borderColor: colors.premium,
-          backgroundColor: colors.premiumBg,
-          borderWidth: 2,
-        },
-      ]}
-    >
-      <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-          <Text style={[typography.h3, { color: colors.textPrimary }]}>{title}</Text>
-          {badge ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{badge}</Text>
-            </View>
-          ) : null}
-        </View>
-        <Text style={[typography.body, { color: colors.textSecondary, marginTop: 2 }]}>
-          {price}
-        </Text>
-      </View>
-      <Button
-        title="Choose"
-        fullWidth={false}
-        loading={loading}
-        onPress={onPress}
-        style={{ paddingHorizontal: spacing.lg }}
-      />
-    </View>
   );
 }
 
@@ -163,22 +137,25 @@ const styles = StyleSheet.create({
   },
   benefitRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
   check: { color: colors.success, fontSize: 18, fontWeight: '700' },
-  plan: {
-    backgroundColor: colors.surface,
+  priceCard: {
+    backgroundColor: colors.premiumBg,
     padding: spacing.lg,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    flexDirection: 'row',
+    borderWidth: 2,
+    borderColor: colors.premium,
     alignItems: 'center',
+    marginTop: spacing.lg,
   },
-  badge: {
-    backgroundColor: colors.premium,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.sm,
+  priceText: {
+    color: colors.textPrimary,
+    fontSize: 44,
+    lineHeight: 56,
+    fontWeight: '700',
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+    textAlign: 'center',
+    includeFontPadding: false,
   },
-  badgeText: { color: colors.textInverse, fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
   legal: {
     color: colors.textMuted,
     textAlign: 'center',

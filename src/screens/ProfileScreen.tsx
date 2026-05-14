@@ -1,20 +1,25 @@
 import React from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { Button } from '../components/Button';
 import { useAppDispatch, useAppSelector } from '../redux/store';
+import { ONBOARDING_FLAG } from '../redux/store';
 import { selectIsPremium, setSubscription } from '../redux/slices/subscriptionSlice';
 import { reset as resetProgress } from '../redux/slices/progressSlice';
+import { resetSessions } from '../redux/slices/sessionsSlice';
 import { setUser } from '../redux/slices/authSlice';
+import { setOnboardingCompleted } from '../redux/slices/appSlice';
 import { signOut } from '../services/authService';
 import { downgradeToFree } from '../services/subscriptionService';
 import { colors } from '../utils/colors';
 import { spacing, radius } from '../utils/spacing';
 import { typography } from '../utils/fonts';
 import { APP_CONFIG } from '../config/freemium';
+import { isExpoGo } from '../utils/env';
 import { RootStackParamList } from '../navigation/RootNavigator';
 
 export function ProfileScreen() {
@@ -44,13 +49,44 @@ export function ProfileScreen() {
   const handleResetProgress = () => {
     Alert.alert(
       'Reset progress?',
-      'This will erase your local answers, bookmarks and daily counters. This cannot be undone.',
+      'This will erase your local answers and bookmarks. The free question counter will go back to 0/30. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Reset',
           style: 'destructive',
-          onPress: () => dispatch(resetProgress()),
+          onPress: () => {
+            dispatch(resetProgress());
+            dispatch(resetSessions());
+          },
+        },
+      ]
+    );
+  };
+
+  const handleStartOver = () => {
+    Alert.alert(
+      'Start over?',
+      'This will sign you out and erase all your local progress, bookmarks, counters, and onboarding state. You will return to the welcome screen.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Start over',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              dispatch(resetProgress());
+              dispatch(resetSessions());
+              dispatch(setOnboardingCompleted(false));
+              try {
+                await AsyncStorage.removeItem(ONBOARDING_FLAG);
+              } catch {}
+              await signOut();
+              dispatch(setUser(null));
+            } catch (e: any) {
+              Alert.alert('Could not sign out', e?.message ?? 'Unknown error');
+            }
+          },
         },
       ]
     );
@@ -85,7 +121,7 @@ export function ProfileScreen() {
               </Text>
               <Button
                 title="Create account / Sign in"
-                onPress={() => navigation.navigate('Auth', { mode: 'signup' })}
+                onPress={() => navigation.navigate('UpgradeAccount', { mode: 'signup' })}
                 style={{ marginTop: spacing.md }}
               />
             </>
@@ -117,12 +153,29 @@ export function ProfileScreen() {
 
         <View style={styles.card}>
           <Text style={[typography.micro, styles.label]}>DATA</Text>
-          <Button
-            title="Reset progress"
-            variant="ghost"
-            onPress={handleResetProgress}
-            style={{ marginTop: spacing.sm }}
-          />
+          {isPremium ? (
+            <Button
+              title="Reset progress"
+              variant="ghost"
+              onPress={handleResetProgress}
+              style={{ marginTop: spacing.sm }}
+            />
+          ) : (
+            <Button
+              title="🔒 Reset progress (Premium)"
+              variant="ghost"
+              onPress={() => navigation.navigate('Paywall')}
+              style={{ marginTop: spacing.sm }}
+            />
+          )}
+          {isExpoGo && (
+            <Button
+              title="Start over (back to welcome)"
+              variant="ghost"
+              onPress={handleStartOver}
+              style={{ marginTop: spacing.xs }}
+            />
+          )}
         </View>
 
         {!isGuest && (

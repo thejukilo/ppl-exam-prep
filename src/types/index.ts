@@ -33,20 +33,6 @@ export interface Question {
   attachmentUrl: string | null; // Supabase Storage public URL for charts/diagrams
 }
 
-export interface StudyGuide {
-  id: string;
-  topicId: TopicId;
-  title: string;
-  intro: string;          // 1–2 paragraphs
-  sections: StudyGuideSection[];
-  isFreePreview: boolean; // First section visible on free tier
-}
-
-export interface StudyGuideSection {
-  heading: string;
-  body: string;          // Markdown allowed
-}
-
 // ============================================================================
 // User progress
 // ============================================================================

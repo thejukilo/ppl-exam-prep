@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Provider } from 'react-redux';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Alert } from 'react-native';
 import { useFonts } from 'expo-font';
 
@@ -22,6 +23,7 @@ import { fetchAttempts } from './src/services/progressService';
 
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { LoadingSpinner } from './src/components/LoadingSpinner';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { fontMap } from './src/utils/fonts';
 
 /**
@@ -125,13 +127,17 @@ export default function App() {
   }
 
   return (
-    <Provider store={store}>
-      <SafeAreaProvider>
-        <StatusBar style="dark" />
-        <Bootstrapper>
-          <RootNavigator />
-        </Bootstrapper>
-      </SafeAreaProvider>
-    </Provider>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <Provider store={store}>
+          <SafeAreaProvider>
+            <StatusBar style="dark" />
+            <Bootstrapper>
+              <RootNavigator />
+            </Bootstrapper>
+          </SafeAreaProvider>
+        </Provider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }
