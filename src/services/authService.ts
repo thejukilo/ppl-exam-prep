@@ -175,17 +175,13 @@ export async function signInWithGoogle(): Promise<AppUser> {
     await google.GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
   }
 
-  // Generate a nonce: a random string we send to Google (hashed),
-  // and a plain version we send to Supabase. Supabase verifies the hash
-  // inside the ID token matches our plain nonce.
+  // Generate a nonce for Supabase ID token verification.
+  // Google's SDK hashes it internally, embeds the hash in the ID token,
+  // and Supabase verifies by re-hashing our raw nonce.
   const rawNonce = Crypto.randomUUID();
-  const hashedNonce = await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    rawNonce
-  );
 
-  // Pass the hashed nonce to Google. The returned ID token will contain it.
-  const result = await google.GoogleSignin.signIn({ nonce: hashedNonce });
+  // Pass the raw nonce to Google. The returned ID token will contain its hash.
+  const result = await google.GoogleSignin.signIn({ nonce: rawNonce });
 
   const idToken =
     (result as any)?.data?.idToken ?? (result as any)?.idToken ?? null;
@@ -226,7 +222,6 @@ export async function deleteAccount(): Promise<void> {
   }
   await supabase.auth.signOut();
 }
-
 
 export async function signOut(): Promise<void> {
   // Sign out of any third-party providers too, so next launch fully resets.

@@ -18,7 +18,7 @@ import { hydrate as hydrateProgress } from './src/redux/slices/progressSlice';
 
 import { getCurrentUser, onAuthStateChange } from './src/services/authService';
 import { fetchAllQuestions } from './src/services/questionsService';
-import { fetchSubscription } from './src/services/subscriptionService';
+import { fetchSubscription, configurePurchases } from './src/services/subscriptionService';
 import { fetchAttempts } from './src/services/progressService';
 
 import { RootNavigator } from './src/navigation/RootNavigator';
@@ -67,6 +67,11 @@ function Bootstrapper({ children }: { children: React.ReactNode }) {
       setQuestionsBootstrapped(false);
       return;
     }
+	
+	// Configure RevenueCat with the user's Supabase ID
+    configurePurchases(user.id).catch(() => {
+      // Non-fatal — purchase actions will surface their own errors
+    });
 
     let cancelled = false;
     (async () => {

@@ -13,7 +13,7 @@ import { reset as resetProgress } from '../redux/slices/progressSlice';
 import { resetSessions } from '../redux/slices/sessionsSlice';
 import { setUser } from '../redux/slices/authSlice';
 import { setOnboardingCompleted } from '../redux/slices/appSlice';
-import { signOut } from '../services/authService';
+import { signOut, deleteAccount } from '../services/authService';
 import { downgradeToFree } from '../services/subscriptionService';
 import { colors } from '../utils/colors';
 import { spacing, radius } from '../utils/spacing';
@@ -44,6 +44,30 @@ export function ProfileScreen() {
         },
       },
     ]);
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete account?',
+      'This permanently deletes your account and all your data (progress, bookmarks, premium status). This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete forever',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAccount();
+              dispatch(setUser(null));
+              dispatch(resetProgress());
+              dispatch(resetSessions());
+            } catch (e: any) {
+              Alert.alert('Could not delete account', e?.message ?? 'Unknown error');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleResetProgress = () => {
@@ -178,8 +202,16 @@ export function ProfileScreen() {
           )}
         </View>
 
-        {!isGuest && (
-          <Button title="Sign out" variant="danger" onPress={handleSignOut} />
+ {!isGuest && (
+          <>
+            <Button title="Sign out" variant="danger" onPress={handleSignOut} />
+            <Button
+              title="Delete account"
+              variant="ghost"
+              onPress={handleDeleteAccount}
+              style={{ marginTop: spacing.sm }}
+            />
+          </>
         )}
 
         <Text style={styles.footer}>

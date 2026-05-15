@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { Button } from '../components/Button';
 import { useAppDispatch, useAppSelector } from '../redux/store';
 import { setSubscription } from '../redux/slices/subscriptionSlice';
-import { upgradeToPremium } from '../services/subscriptionService';
+import {
+  upgradeToPremium,
+  restorePurchases,
+  getLocalizedPrice,
+} from '../services/subscriptionService';
 import { FREEMIUM } from '../config/freemium';
 import { colors } from '../utils/colors';
 import { spacing, radius } from '../utils/spacing';
@@ -28,6 +32,20 @@ export function PaywallScreen({ navigation }: Props) {
   const dispatch = useAppDispatch();
   const user = useAppSelector((s) => s.auth.user);
   const [busy, setBusy] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [localizedPrice, setLocalizedPrice] = useState<string | null>(null);
+
+  // Fetch the user's localized price from App Store on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const price = await getLocalizedPrice();
+        setLocalizedPrice(price);
+      } catch {
+        // Fall back to hardcoded display if RevenueCat unavailable
+      }
+    })();
+  }, []);
 
   const purchase = async () => {
     if (!user) {
@@ -37,9 +55,7 @@ export function PaywallScreen({ navigation }: Props) {
       ]);
       return;
     }
-    // TODO: Replace with real IAP via expo-in-app-purchases or RevenueCat.
-    // Non-consumable product. Verify the receipt server-side (Edge Function)
-    // before flipping the subscription_tier in profiles.
+
     setBusy(true);
     try {
       const sub = await upgradeToPremium(user.id);
@@ -50,6 +66,10 @@ export function PaywallScreen({ navigation }: Props) {
       );
       navigation.goBack();
     } catch (e: any) {
+      // User cancelled — silent
+      if (e?.message === 'Purchase cancelled') {
+        return;
+      }
       Alert.alert('Purchase failed', e?.message ?? 'Unknown error');
     } finally {
       setBusy(false);
@@ -61,13 +81,34 @@ export function PaywallScreen({ navigation }: Props) {
       Alert.alert('Sign in required', 'Please sign in to restore a previous purchase.');
       return;
     }
-    // TODO: Real restore via IAP library — should query past purchases for this Apple/Google
-    // account, find the lifetime productId, and re-flip the subscription bit.
-    Alert.alert(
-      'Restore purchases',
-      'Restore is not yet implemented in this build. It will be available when in-app purchases are wired up.'
-    );
+
+    setRestoring(true);
+    try {
+      const sub = await restorePurchases(user.id);
+      dispatch(setSubscription(sub));
+
+      if (sub.tier === 'premium') {
+        Alert.alert(
+          'Purchases restored',
+          'Welcome back! Your Premium access is now active.'
+        );
+        navigation.goBack();
+      } else {
+        Alert.alert(
+          'No purchases found',
+          'We could not find any previous purchases on this Apple ID.'
+        );
+      }
+    } catch (e: any) {
+      Alert.alert('Restore failed', e?.message ?? 'Unknown error');
+    } finally {
+      setRestoring(false);
+    }
   };
+
+  // Use the localized price from App Store if available, otherwise fall back
+  // to the hardcoded display in config.
+  const priceDisplay = localizedPrice ?? FREEMIUM.pricing.lifetime.display;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -93,7 +134,7 @@ export function PaywallScreen({ navigation }: Props) {
           {FREEMIUM.pricing.lifetime.label.toUpperCase()}
         </Text>
         <Text style={styles.priceText} adjustsFontSizeToFit numberOfLines={1}>
-          {FREEMIUM.pricing.lifetime.display}
+          {priceDisplay}
         </Text>
         <Text style={[typography.caption, { color: colors.textMuted, marginBottom: spacing.md }]}>
           Pay once. No recurring charges.
@@ -108,12 +149,13 @@ export function PaywallScreen({ navigation }: Props) {
       <Button
         title="Restore Purchase"
         variant="secondary"
+        loading={restoring}
         onPress={restore}
         style={{ marginTop: spacing.md }}
       />
 
       <Text style={[typography.caption, styles.legal]}>
-        Payment will be charged to your App Store / Google Play account at confirmation of purchase.
+        Payment will be charged to your App Store account at confirmation of purchase.
         This is a one-time purchase — there is nothing to cancel.
       </Text>
     </ScrollView>
