@@ -35,19 +35,30 @@ function getGoogleSignin() {
     _GoogleSignin = require('@react-native-google-signin/google-signin');
   }
 
-  // Configure once on first use
+  // Configure once on first use.
+  // Hardcoded as fallback because runtime extras (Constants.expoConfig.extra)
+  // are unreliable in production builds — when env vars weren't present at
+  // build time, these end up empty and the native SDK crashes on sign-in.
+  // OAuth client IDs are not secrets (they're in the IPA anyway), so safe to hardcode.
   if (!_googleConfigured && _GoogleSignin) {
     const extra = getRuntimeExtras();
-    const webClientId = (extra.googleWebClientId as string) || '';
-    const iosClientId = (extra.googleIosClientId as string) || '';
+    const webClientId =
+      (extra.googleWebClientId as string) ||
+      '76630924595-en16d9mr1hs9fluorq8gl5a7vu3gd137.apps.googleusercontent.com';
+    const iosClientId =
+      (extra.googleIosClientId as string) ||
+      '76630924595-ttbiktrq9umc0vfu8hn9grk1sakkm7o3.apps.googleusercontent.com';
 
-    if (webClientId) {
+    try {
       _GoogleSignin.GoogleSignin.configure({
         webClientId,
         iosClientId,
         offlineAccess: false,
       });
       _googleConfigured = true;
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[authService] GoogleSignin.configure failed:', e);
     }
   }
   return _GoogleSignin;
@@ -157,12 +168,9 @@ export async function signInWithGoogle(): Promise<AppUser> {
     throw new Error(EXPO_GO_MSG);
   }
 
-  const extra = getRuntimeExtras();
-  if (!extra.googleWebClientId) {
-    throw new Error(
-      'Google Sign-In is not configured. Set GOOGLE_WEB_CLIENT_ID in .env and rebuild.'
-    );
-  }
+  // Note: we used to check getRuntimeExtras().googleWebClientId here and throw
+  // if missing. But the configure() call in getGoogleSignin now uses hardcoded
+  // fallbacks (client IDs aren't secrets), so the check is no longer needed.
 
   await google.GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
   const result = await google.GoogleSignin.signIn();
