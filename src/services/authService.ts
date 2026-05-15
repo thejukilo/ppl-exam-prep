@@ -1,5 +1,4 @@
 import { Platform } from 'react-native';
-import * as Crypto from 'expo-crypto';
 import { supabase } from './supabase';
 import { AppUser } from '../types';
 import { isExpoGo, supportsNativeAuth, getRuntimeExtras } from '../utils/env';
@@ -175,13 +174,8 @@ export async function signInWithGoogle(): Promise<AppUser> {
     await google.GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
   }
 
-  // Generate a nonce for Supabase ID token verification.
-  // Google's SDK hashes it internally, embeds the hash in the ID token,
-  // and Supabase verifies by re-hashing our raw nonce.
-  const rawNonce = Crypto.randomUUID();
+  const result = await google.GoogleSignin.signIn();
 
-  // Pass the raw nonce to Google. The returned ID token will contain its hash.
-  const result = await google.GoogleSignin.signIn({ nonce: rawNonce });
 
   const idToken =
     (result as any)?.data?.idToken ?? (result as any)?.idToken ?? null;
@@ -193,8 +187,9 @@ export async function signInWithGoogle(): Promise<AppUser> {
   const { data, error } = await supabase.auth.signInWithIdToken({
     provider: 'google',
     token: idToken,
-    nonce: rawNonce,
   });
+  
+  
   if (error) throw error;
   if (!data.user) throw new Error('Supabase did not return a user for Google sign-in');
   return mapUser(data.user as any)!;
