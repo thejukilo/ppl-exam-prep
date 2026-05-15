@@ -27,17 +27,21 @@
     <key>CFBundleURLTypes</key>
     <array>
       <dict>
+       <key>CFBundleURLTypes</key>
+    <array>
+      <dict>
         <key>CFBundleURLSchemes</key>
         <array>
           <string>pplexamprep</string>
-          <string>com.googleusercontent.apps.invalid</string>
         </array>
       </dict>
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
-          <string>com.googleusercontent.apps.placeholder</string>
+          <string>com.googleusercontent.apps.76630924595-ttbiktrq9umc0vfu8hn9grk1sakkm7o3</string>
         </array>
+      </dict>
+    </array>
       </dict>
     </array>
     <key>CFBundleVersion</key>
