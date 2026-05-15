@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-
+import * as Crypto from 'expo-crypto';
 import { supabase } from './supabase';
 import { AppUser } from '../types';
 import { isExpoGo, supportsNativeAuth, getRuntimeExtras } from '../utils/env';
@@ -161,6 +161,7 @@ export async function signInWithApple(): Promise<AppUser> {
 
 /**
  * Google Sign-In (iOS + Android, dev/production builds only — not Expo Go).
+ * Uses a nonce to satisfy Supabase's signInWithIdToken requirement.
  */
 export async function signInWithGoogle(): Promise<AppUser> {
   const google = getGoogleSignin();
@@ -174,10 +175,18 @@ export async function signInWithGoogle(): Promise<AppUser> {
     await google.GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
   }
 
-  const result = await google.GoogleSignin.signIn();
+  // Generate a nonce: a random string we send to Google (hashed),
+  // and a plain version we send to Supabase. Supabase verifies the hash
+  // inside the ID token matches our plain nonce.
+  const rawNonce = Crypto.randomUUID();
+  const hashedNonce = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    rawNonce
+  );
 
-  // Library returns either { type: 'success', data: { idToken } } in newer
-  // versions or { idToken } directly in older. Handle both.
+  // Pass the hashed nonce to Google. The returned ID token will contain it.
+  const result = await google.GoogleSignin.signIn({ nonce: hashedNonce });
+
   const idToken =
     (result as any)?.data?.idToken ?? (result as any)?.idToken ?? null;
 
@@ -188,11 +197,36 @@ export async function signInWithGoogle(): Promise<AppUser> {
   const { data, error } = await supabase.auth.signInWithIdToken({
     provider: 'google',
     token: idToken,
+    nonce: rawNonce,
   });
   if (error) throw error;
   if (!data.user) throw new Error('Supabase did not return a user for Google sign-in');
   return mapUser(data.user as any)!;
 }
+
+/**
+ * Permanently delete the user's account.
+ * Calls a Supabase RPC that:
+ *  - Removes all rows in app tables tied to this user
+ *  - Deletes the auth.users row itself
+ * After this, the user is fully signed out and cannot recover their data.
+ */
+export async function deleteAccount(): Promise<void> {
+  const { error } = await supabase.rpc('delete_my_account');
+  if (error) throw error;
+
+  // Sign out locally to clear the session
+  const google = _GoogleSignin;
+  if (google) {
+    try {
+      await google.GoogleSignin.signOut();
+    } catch {
+      // Not signed in — ignore
+    }
+  }
+  await supabase.auth.signOut();
+}
+
 
 export async function signOut(): Promise<void> {
   // Sign out of any third-party providers too, so next launch fully resets.
