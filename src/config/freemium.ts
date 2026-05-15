@@ -28,7 +28,7 @@ export const FREEMIUM = {
 
 export const APP_CONFIG = {
   appName: 'PPL Exam Prep',
-  supportEmail: 'support@example.com',
+  supportEmail: 'support@jukilo.com',
   privacyPolicyUrl: 'https://example.com/privacy',
   termsUrl: 'https://example.com/terms',
 } as const;
