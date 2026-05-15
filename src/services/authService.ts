@@ -168,11 +168,12 @@ export async function signInWithGoogle(): Promise<AppUser> {
     throw new Error(EXPO_GO_MSG);
   }
 
-  // Note: we used to check getRuntimeExtras().googleWebClientId here and throw
-  // if missing. But the configure() call in getGoogleSignin now uses hardcoded
-  // fallbacks (client IDs aren't secrets), so the check is no longer needed.
+  // hasPlayServices is Android-only. Calling it on iOS can cause a native
+  // exception because the method may not be exposed by the iOS module.
+  if (Platform.OS === 'android') {
+    await google.GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+  }
 
-  await google.GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
   const result = await google.GoogleSignin.signIn();
 
   // Library returns either { type: 'success', data: { idToken } } in newer
@@ -210,10 +211,6 @@ export async function signOut(): Promise<void> {
 
 /**
  * Send a password-reset email to the given address.
- *
- * Supabase emails the user a link that, when tapped, opens a Supabase-hosted
- * page where they can set a new password. The user does not need to be signed
- * in for this to work.
  */
 export async function sendPasswordReset(email: string): Promise<void> {
   const { error } = await supabase.auth.resetPasswordForEmail(email);
