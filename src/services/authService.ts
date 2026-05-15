@@ -168,14 +168,13 @@ export async function signInWithGoogle(): Promise<AppUser> {
     throw new Error(EXPO_GO_MSG);
   }
 
-  // hasPlayServices is Android-only. Calling it on iOS can cause a native
-  // exception because the method may not be exposed by the iOS module.
+  // hasPlayServices is Android-only.
   if (Platform.OS === 'android') {
     await google.GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
   }
 
   const result = await google.GoogleSignin.signIn();
-
+  const tokens = await google.GoogleSignin.getTokens();
 
   const idToken =
     (result as any)?.data?.idToken ?? (result as any)?.idToken ?? null;
@@ -187,6 +186,7 @@ export async function signInWithGoogle(): Promise<AppUser> {
   const { data, error } = await supabase.auth.signInWithIdToken({
     provider: 'google',
     token: idToken,
+    access_token: tokens.accessToken,
   });
   
   
