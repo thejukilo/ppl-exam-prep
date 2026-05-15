@@ -1,8 +1,8 @@
 // app.config.js — replaces app.json so we can read .env at build time.
 // Anything under `extra` is available at runtime via expo-constants.
 
-const REVERSED_CLIENT_ID = process.env.GOOGLE_IOS_REVERSED_CLIENT_ID;
-
+#const REVERSED_CLIENT_ID = process.env.GOOGLE_IOS_REVERSED_CLIENT_ID;
+const REVERSED_CLIENT_ID = "com.googleusercontent.apps.76630924595-ttbiktrq9umc0vfu8hn9grk1sakkm7o3"
 module.exports = ({ config }) => ({
   ...config,
   name: 'PPL Exam Prep',
