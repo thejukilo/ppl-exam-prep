@@ -14,7 +14,6 @@ import { resetSessions } from '../redux/slices/sessionsSlice';
 import { setUser } from '../redux/slices/authSlice';
 import { setOnboardingCompleted } from '../redux/slices/appSlice';
 import { signOut, deleteAccount } from '../services/authService';
-import { downgradeToFree } from '../services/subscriptionService';
 import { colors } from '../utils/colors';
 import { spacing, radius } from '../utils/spacing';
 import { typography } from '../utils/fonts';
@@ -116,15 +115,6 @@ export function ProfileScreen() {
     );
   };
 
-  const handleDowngrade = async () => {
-    if (!user) return;
-    try {
-      const sub = await downgradeToFree(user.id);
-      dispatch(setSubscription(sub));
-    } catch (e: any) {
-      Alert.alert('Could not downgrade', e?.message ?? 'Unknown error');
-    }
-  };
 
   const isGuest = !user || user.isAnonymous;
 
@@ -159,14 +149,7 @@ export function ProfileScreen() {
           <Text style={[typography.h3, { color: colors.textPrimary, marginTop: 4 }]}>
             {isPremium ? '✨ Premium' : 'Free'}
           </Text>
-          {isPremium ? (
-            <Button
-              title="Cancel premium (test)"
-              variant="ghost"
-              onPress={handleDowngrade}
-              style={{ marginTop: spacing.md }}
-            />
-          ) : (
+                    {!isPremium && (
             <Button
               title="Upgrade to Premium"
               onPress={() => navigation.navigate('Paywall')}
