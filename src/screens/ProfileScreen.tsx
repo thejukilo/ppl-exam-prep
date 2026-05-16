@@ -136,7 +136,7 @@ export function ProfileScreen() {
         <View style={styles.card}>
           <Text style={[typography.micro, styles.label]}>SIGNED IN AS</Text>
           <Text style={[typography.h3, { color: colors.textPrimary, marginTop: 4 }]}>
-            {user?.email ?? (user?.isAnonymous ? 'Guest' : 'Not signed in')}
+            {user?.isAnonymous ? 'Guest' : user?.email || 'Not signed in'}
           </Text>
           {isGuest && (
             <>

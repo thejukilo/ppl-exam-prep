@@ -63,7 +63,7 @@ export function AuthScreen({ navigation, route }: Props) {
   // until we actually invoke it.
   const AppleButton = authCapabilities.apple ? requireAppleButton() : null;
 
-  const handleEmail = async () => {
+const handleEmail = async () => {
     if (!email || !password) {
       Alert.alert('Missing info', 'Please enter both email and password.');
       return;
@@ -74,14 +74,39 @@ export function AuthScreen({ navigation, route }: Props) {
     }
     setBusy('email');
     try {
-      const user =
-        mode === 'signup'
-          ? await signUpWithEmail(email, password)
-          : await signInWithEmail(email, password);
-      dispatch(setUser(user));
-      dismissAfterAuth();
+      if (mode === 'signup') {
+        const result = await signUpWithEmail(email, password);
+
+        if (result.needsEmailVerification) {
+          // Don't sign the user in — they need to verify first
+          Alert.alert(
+            'Check your email',
+            `We sent a confirmation link to ${email}. Tap the link to verify your account, then come back here and sign in.`,
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  setMode('signin');
+                  setPassword('');
+                },
+              },
+            ]
+          );
+        } else {
+          // Email verification not required — sign them in immediately
+          dispatch(setUser(result.user));
+          dismissAfterAuth();
+        }
+      } else {
+        const user = await signInWithEmail(email, password);
+        dispatch(setUser(user));
+        dismissAfterAuth();
+      }
     } catch (e: any) {
-      Alert.alert(mode === 'signup' ? 'Sign-up failed' : 'Sign-in failed', e?.message ?? 'Unknown error');
+      Alert.alert(
+        mode === 'signup' ? 'Sign-up failed' : 'Sign-in failed',
+        e?.message ?? 'Unknown error'
+      );
     } finally {
       setBusy(null);
     }

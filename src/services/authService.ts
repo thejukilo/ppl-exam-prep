@@ -105,11 +105,22 @@ export async function getCurrentUser(): Promise<AppUser | null> {
   return mapUser(data.user as any);
 }
 
-export async function signUpWithEmail(email: string, password: string): Promise<AppUser> {
+export async function signUpWithEmail(
+  email: string,
+  password: string
+): Promise<{ user: AppUser | null; needsEmailVerification: boolean }> {
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) throw error;
   if (!data.user) throw new Error('Sign-up returned no user');
-  return mapUser(data.user as any)!;
+
+  // If "Confirm email" is enabled in Supabase, sign-up returns a user
+  // but session is null until they verify. Treat them as "needs verification".
+  const needsEmailVerification = !data.session;
+
+  return {
+    user: mapUser(data.user as any),
+    needsEmailVerification,
+  };
 }
 
 export async function signInWithEmail(email: string, password: string): Promise<AppUser> {
