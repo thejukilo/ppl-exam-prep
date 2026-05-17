@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Dimensions, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -19,6 +19,10 @@ export function WelcomeScreen({ navigation }: Props) {
   const dispatch = useAppDispatch();
   const [guestLoading, setGuestLoading] = useState(false);
 
+  // Cap sky scene at 40% of screen on small phones, max 420px on big ones
+  const screenHeight = Dimensions.get('window').height;
+  const skyHeight = Math.min(420, screenHeight * 0.4);
+
   const continueAsGuest = async () => {
     setGuestLoading(true);
     try {
@@ -37,12 +41,11 @@ export function WelcomeScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <SkyScene height={420} />
+      <SkyScene height={skyHeight} />
 
       <SafeAreaView style={styles.bottom} edges={['bottom']}>
         <ScrollView
           contentContainerStyle={styles.content}
-          bounces={false}
           showsVerticalScrollIndicator={false}
         >
           <Text style={[typography.display, styles.title]}>
