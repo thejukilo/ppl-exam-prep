@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useLayoutEffect } from 'react';
+import React, { useEffect, useState, useLayoutEffect, useRef } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -50,6 +50,7 @@ export function QuizScreen({ route, navigation }: Props) {
   const isPremium = useAppSelector(selectIsPremium);
   const bookmarks = useAppSelector(selectBookmarks);
   const freemium = useFreemium(topicId ?? null);
+  const scrollRef = useRef<ScrollView>(null);
   const topic = topicId ? getTopicById(topicId) : null;
 
   // Look up a previously-saved session for this topic, only relevant when
@@ -252,6 +253,11 @@ export function QuizScreen({ route, navigation }: Props) {
       next[index] = true;
       return next;
     });
+
+    // Scroll down so the explanation is visible (important on small screens)
+    setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 100);
   };
 
   const handleNext = () => {
@@ -321,7 +327,7 @@ export function QuizScreen({ route, navigation }: Props) {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView  ref={scrollRef} contentContainerStyle={styles.scroll}>
         <QuestionCard
           question={current}
           selectedAnswer={selected}

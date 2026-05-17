@@ -81,27 +81,6 @@ export function HomeScreen({ navigation }: Props) {
           </Pressable>
         </View>
 
-{!isPremium && (
-          <View style={styles.quotaCard}>
-            <View style={{ flex: 1 }}>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                Free preview
-              </Text>
-              <Text style={[typography.h3, { color: colors.textPrimary, marginTop: 2 }]}>
-                {FREEMIUM.freeQuestionsPerTopic} free questions per topic
-              </Text>
-              <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
-                Unlock for unlimited access
-              </Text>
-            </View>
-            <Button
-              title="Unlock"
-              onPress={() => navigation.navigate('Paywall')}
-              fullWidth={false}
-              style={{ marginLeft: spacing.md, paddingHorizontal: spacing.lg }}
-            />
-          </View>
-        )}
 
         {wrongIds.length > 0 && (
           <View style={styles.mistakesCard}>

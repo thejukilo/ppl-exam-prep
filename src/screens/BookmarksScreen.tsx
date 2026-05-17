@@ -27,7 +27,7 @@ export function BookmarksScreen({ navigation }: Props) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.empty}>
-          <Text style={[typography.display, styles.emptyEmoji]}>★</Text>
+                    <Text style={styles.emptyEmoji}>★</Text>
           <Text style={[typography.h2, { color: colors.textPrimary, textAlign: 'center' }]}>
             No bookmarks yet
           </Text>
@@ -119,7 +119,14 @@ const styles = StyleSheet.create({
   title: { color: colors.textPrimary },
   subtitle: { color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg },
   empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
-  emptyEmoji: { fontSize: 56, marginBottom: spacing.md, color: colors.primary },
+    emptyEmoji: {
+    fontSize: 56,
+    lineHeight: 72,
+    marginBottom: spacing.md,
+    color: colors.primary,
+    includeFontPadding: false,
+    textAlign: 'center',
+  },
   emptyDesc: {
     color: colors.textSecondary,
     textAlign: 'center',
