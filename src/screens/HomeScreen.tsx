@@ -9,14 +9,13 @@ import { useAppSelector } from '../redux/store';
 import { selectAllQuestions } from '../redux/slices/questionsSlice';
 import { selectTopicProgress, selectWrongAnsweredIds } from '../redux/slices/progressSlice';
 import { selectIsPremium } from '../redux/slices/subscriptionSlice';
-import { useFreemium } from '../hooks/useFreemium';
 import { FREEMIUM } from '../config/freemium';
 import { colors } from '../utils/colors';
 import { spacing, radius } from '../utils/spacing';
 import { typography } from '../utils/fonts';
 import { RootStackParamList, TabParamList } from '../navigation/RootNavigator';
 import { Button } from '../components/Button';
-import { ProgressBar } from '../components/ProgressBar';
+
 
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps } from '@react-navigation/native';
@@ -30,7 +29,6 @@ export function HomeScreen({ navigation }: Props) {
   const questions = useAppSelector(selectAllQuestions);
   const progressByTopic = useAppSelector(selectTopicProgress);
   const isPremium = useAppSelector(selectIsPremium);
-  const freemium = useFreemium();
   const wrongIds = useAppSelector(selectWrongAnsweredIds);
   const user = useAppSelector((s) => s.auth.user);
 
@@ -83,21 +81,18 @@ export function HomeScreen({ navigation }: Props) {
           </Pressable>
         </View>
 
-        {!isPremium && (
+{!isPremium && (
           <View style={styles.quotaCard}>
             <View style={{ flex: 1 }}>
               <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                Free questions used
+                Free preview
               </Text>
-              <Text style={[typography.h2, { color: colors.textPrimary, marginTop: 2 }]}>
-                {Math.min(freemium.answeredEver, freemium.lifetimeLimit)} / {freemium.lifetimeLimit}
+              <Text style={[typography.h3, { color: colors.textPrimary, marginTop: 2 }]}>
+                {FREEMIUM.freeQuestionsPerTopic} free questions per topic
               </Text>
-              <View style={{ marginTop: spacing.sm }}>
-                <ProgressBar
-                  value={Math.min(freemium.answeredEver / freemium.lifetimeLimit, 1)}
-                  color={freemium.limitReached ? colors.error : colors.primary}
-                />
-              </View>
+              <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
+                Unlock for unlimited access
+              </Text>
             </View>
             <Button
               title="Unlock"

@@ -5,10 +5,10 @@
  */
 
 export const FREEMIUM = {
-  // Total lifetime quota of NEW questions a free user can answer.
+  // Per-topic quota of NEW questions a free user can answer in each topic.
   // Re-attempts of already-answered questions don't count against this.
-  // Once the user has seen this many distinct questions, they hit the paywall.
-  freeLifetimeQuestionLimit: 30,
+  // Each topic has its own counter, so users can sample every subject.
+  freeQuestionsPerTopic: 10,
 
   // Free users can attempt all topics by default. Set to true to lock all
   // topics except those marked `isFree: true` in topics.ts.
@@ -29,6 +29,6 @@ export const FREEMIUM = {
 export const APP_CONFIG = {
   appName: 'PPL Exam Prep',
   supportEmail: 'support@jukilo.com',
-  privacyPolicyUrl: 'https://example.com/privacy',
-  termsUrl: 'https://example.com/terms',
+  privacyPolicyUrl: 'https://jukilo.com/privacy',
+  termsUrl: 'https://jukilo.com/terms',
 } as const;

@@ -49,7 +49,7 @@ export function QuizScreen({ route, navigation }: Props) {
   const userId = useAppSelector((s) => s.auth.user?.id);
   const isPremium = useAppSelector(selectIsPremium);
   const bookmarks = useAppSelector(selectBookmarks);
-  const freemium = useFreemium();
+  const freemium = useFreemium(topicId ?? null);
   const topic = topicId ? getTopicById(topicId) : null;
 
   // Look up a previously-saved session for this topic, only relevant when
@@ -224,9 +224,9 @@ export function QuizScreen({ route, navigation }: Props) {
     // Free-tier lifetime limit gate: re-attempts of already-answered questions
     // are always free; only block when the user is about to consume a new slot.
     if (!isPremium && !isReattempt && freemium.limitReached) {
-      Alert.alert(
-        'Free limit reached',
-        `You've used all ${freemium.lifetimeLimit} of your free questions. Unlock the full question bank for ${FREEMIUM.pricing.lifetime.display} (one-time, lifetime access).`,
+    Alert.alert(
+        'Topic limit reached',
+        `You've used all ${freemium.perTopicLimit} of your free questions for this topic. Unlock the full question bank to keep going (${FREEMIUM.pricing.lifetime.display}, one-time, lifetime access).`,
         [
           { text: 'Not now', style: 'cancel', onPress: () => navigation.goBack() },
           { text: 'Unlock', onPress: () => navigation.navigate('Paywall') },
